@@ -54,6 +54,16 @@ class Belegung:
     seit: float
     bis: float
     zweck: str = ""
+    # "mit"      -- ich nutze, was gerade da ist, und blockiere keinen Wechsel
+    # "exklusiv" -- ich brauche GENAU dieses Modell, ein Wechsel wuerde meine
+    #               Arbeit abbrechen
+    #
+    # Der Unterschied ist wesentlich. Der Sprachassistent laeuft dauernd und
+    # nimmt, was da ist; die Gutachten-App braucht ihr Modell und muss
+    # zwischendurch selbst auf das Bildmodell und zurueck wechseln koennen.
+    # Ohne die Unterscheidung haette der stille Mitleser den blockiert, der
+    # tatsaechlich arbeitet.
+    art: str = "mit"
 
 
 @dataclass
@@ -123,12 +133,12 @@ def status() -> dict:
             "modell": z.modell,
             "geladen_seit_s": round(jetzt - z.geladen_seit) if z.geladen_seit else None,
             "beschreibung": m,
-            "belegt_von": [{"wer": b.wer, "zweck": b.zweck,
+            "belegt_von": [{"wer": b.wer, "zweck": b.zweck, "art": b.art,
                             "noch_s": round(b.bis - jetzt)} for b in z.belegungen],
             "warteschlange": [{"wer": w.wer, "profil": w.profil, "zweck": w.zweck,
                                "wartet_s": round(jetzt - w.seit)}
                               for w in z.warteschlange],
-            "wechsel_moeglich": not z.belegungen,
+            "wechsel_moeglich": not any(b.art == "exklusiv" for b in z.belegungen),
         }
 
 
@@ -148,15 +158,19 @@ def geladen_melden(profil: str, modell: str) -> dict:
 
 
 def belegen(wer: str, profil: str = "", dauer: int = DAUER_VORGABE,
-            zweck: str = "") -> dict:
+            zweck: str = "", art: str = "mit") -> dict:
     """Anmelden. Gibt zurueck, ob es sofort geht oder ob gewartet wird.
 
     Drei Faelle:
       - kein Profil genannt oder das laufende gemeint  -> sofort, Mitbenutzung
-      - anderes Profil, niemand sonst angemeldet       -> Wechsel freigegeben
-      - anderes Profil, jemand ist angemeldet          -> Warteschlange
+      - anderes Profil, kein fremdes "exklusiv"        -> Wechsel freigegeben
+      - anderes Profil, jemand haelt exklusiv          -> Warteschlange
+
+    `art="exklusiv"` heisst: ein Wechsel wuerde meine Arbeit abbrechen. Wer
+    das nicht braucht, meldet "mit" an und blockiert damit niemanden.
     """
     dauer = max(60, min(int(dauer or DAUER_VORGABE), DAUER_MAX))
+    art = "exklusiv" if art == "exklusiv" else "mit"
     with _schloss:
         z = _laden(); _aufraeumen(z)
         jetzt = time.time()
@@ -171,18 +185,23 @@ def belegen(wer: str, profil: str = "", dauer: int = DAUER_VORGABE,
         if ziel == z.profil:
             # Mitbenutzung: eigene aeltere Belegung ersetzen, nicht haeufen.
             z.belegungen = [b for b in z.belegungen if b.wer != wer]
-            z.belegungen.append(Belegung(wer, ziel, jetzt, jetzt + dauer, zweck))
+            z.belegungen.append(Belegung(wer, ziel, jetzt, jetzt + dauer, zweck, art))
             z.warteschlange = [w for w in z.warteschlange if w.wer != wer]
             _sichern(z)
             return {"zuschlag": True, "wechsel_noetig": False,
                     "bis_s": dauer, **status()}
 
-        fremde = [b for b in z.belegungen if b.wer != wer]
+        # Nur EXKLUSIVE Anmeldungen anderer blockieren einen Wechsel.
+        # Mitbenutzer verlieren ihr Modell -- sie haben angemeldet, dass sie
+        # nehmen, was da ist.
+        fremde = [b for b in z.belegungen if b.wer != wer and b.art == "exklusiv"]
         if not fremde:
             # Wechsel freigegeben. Die Belegung gilt AB JETZT, obwohl das Laden
             # noch zwei Minuten dauert -- sonst faengt der Naechste an
             # umzuschalten, waehrend hier noch geladen wird.
-            z.belegungen = [Belegung(wer, ziel, jetzt, jetzt + dauer, zweck)]
+            # Mitbenutzer des ALTEN Profils verlieren es -- sie haben
+            # angemeldet, dass sie nehmen, was da ist.
+            z.belegungen = [Belegung(wer, ziel, jetzt, jetzt + dauer, zweck, art)]
             z.warteschlange = [w for w in z.warteschlange if w.wer != wer]
             _sichern(z)
             return {"zuschlag": True, "wechsel_noetig": True,
@@ -269,7 +288,8 @@ class _Griff(BaseHTTPRequestHandler):
         if pfad == "/belegen":
             return self._antwort(belegen(wer, str(d.get("profil") or ""),
                                          d.get("dauer") or DAUER_VORGABE,
-                                         str(d.get("zweck") or "")))
+                                         str(d.get("zweck") or ""),
+                                         str(d.get("art") or "mit")))
         if pfad == "/verlaengern":
             return self._antwort(verlaengern(wer, d.get("dauer") or DAUER_VORGABE))
         if pfad == "/freigeben":

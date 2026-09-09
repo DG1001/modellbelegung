@@ -28,6 +28,19 @@ Sie kennt `model-switch` nicht und spricht auch nicht mit vLLM — damit sie
 noch antwortet, wenn der Motor hängt. Wer den Zuschlag hat, schaltet selbst um
 und meldet danach über `/geladen`, was jetzt läuft.
 
+## Zwei Arten von Anmeldung
+
+| | wer | blockiert einen Wechsel |
+|---|---|---|
+| `mit` (Vorgabe) | der Sprachassistent — nimmt, was gerade da ist | **nein** |
+| `exklusiv` | Gutachten-App, LLM-Prüfstand — braucht genau dieses Modell | ja |
+
+Der Unterschied ist wesentlich. Ohne ihn hätte der stille Mitleser den
+blockiert, der tatsächlich arbeitet: der Sprachassistent läuft dauernd, die
+Gutachten-App muss zwischendurch selbst auf das Bildmodell wechseln und
+zurück. Mit `exklusiv` geht das **ohne Rückfrage**, obwohl ein Mitbenutzer
+angemeldet ist.
+
 ## Endpunkte
 
 | | |
@@ -71,8 +84,23 @@ bekommt.
 Übersteuerbar: `BELEGUNG_BIND`, `BELEGUNG_PORT`, `BELEGUNG_ZUSTAND`,
 `BELEGUNG_MODELLE`.
 
+## Angebunden
+
+`belegung-klient.sh` ist der Weg für Skripte. Rückgabewerte: `0` Zuschlag,
+`10` Zuschlag **mit** Umschaltpflicht, `20` warten, `30` Stelle nicht
+erreichbar.
+
+- **`model-switch`** meldet nach jedem Wechsel `/geladen` — es *fragt* nicht.
+  Wer es von Hand aufruft, hat sich entschieden; ein Werkzeug, das sich
+  weigert, hätte kein Vorbild. Fragen müssen die automatischen Anrufer.
+- **Der kihiwi-Wächter** fragt vor jedem Neustart und hält still, wenn jemand
+  exklusiv angemeldet ist.
+
+**`30` heißt nicht „verboten".** Fällt die Belegungsstelle aus, arbeiten alle
+weiter wie zuvor — sonst legt der Ausfall der Buchführung die Maschine lahm.
+
 ## Noch nicht gebaut
 
-- **Anbindung**: `model-switch` und der kihiwi-Wächter fragen noch nicht.
+- **Die Gutachten-App** trägt sich noch nicht ein.
 - **MCP-Server** als Hülle für Agenten.
 - **Oberfläche** für die Warteschlange.
