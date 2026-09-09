@@ -99,6 +99,11 @@ erreichbar.
 **`30` heißt nicht „verboten".** Fällt die Belegungsstelle aus, arbeiten alle
 weiter wie zuvor — sonst legt der Ausfall der Buchführung die Maschine lahm.
 
+## Eine Anwendung anbinden
+
+→ **[ANBINDUNG.md](ANBINDUNG.md)** — Anleitung für Shell und Python, mit den
+vier Dingen, die man leicht falsch macht.
+
 ## Noch nicht gebaut
 
 - **Die Gutachten-App** trägt sich noch nicht ein.
