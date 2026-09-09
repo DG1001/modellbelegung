@@ -1,0 +1,65 @@
+{
+  "_hinweis": "Was der Agent ueber das geladene Modell wissen soll, damit er damit ARBEITET statt zu wechseln. Alle Zahlen sind gemessen, nicht geschaetzt; die Quelle steht dabei. Ein Modellwechsel kostet zwei Minuten -- er lohnt nur, wenn eine Faehigkeit wirklich fehlt.",
+  "ornith-voice": {
+    "name": "Ornith-1.5-35B-A3B",
+    "bauart": "MoE, 35B gesamt / 3B aktiv, NVFP4",
+    "kontext": 131072,
+    "durchsatz_tok_s": 78.4,
+    "faehigkeiten": ["werkzeugaufrufe", "deutsch", "code"],
+    "kein_bild": true,
+    "eignung": "Sprachassistent und allgemeine Arbeit. Schneller erster Satz (0,4-2,5 s gemessen), ruft Werkzeuge aber sparsam auf.",
+    "schwaeche": "Greift im Sprachpfad oft nicht zu dokumente_suchen, obwohl das Werkzeug vorhanden ist. Bei einer Fachfrage vertauschte es Sekundaer- und Rueckstreuelektronen.",
+    "pruefstand": "86/86 verdeckte Tests, opencode, 1:09:00"
+  },
+  "qwen36nvfp4-voice": {
+    "name": "Qwen3.6-35B-A3B NVFP4",
+    "bauart": "MoE, 35B gesamt / 3B aktiv, NVFP4",
+    "kontext": 131072,
+    "durchsatz_tok_s": 78.3,
+    "faehigkeiten": ["werkzeugaufrufe", "deutsch", "code"],
+    "kein_bild": true,
+    "eignung": "Wie Ornith, aber sucht bereitwilliger in Unterlagen UND antwortet trotzdem aus eigenem Wissen, wenn nichts zu finden ist.",
+    "warnung": "Zwei Abstuerze im Dauerbetrieb (03.09. nach 2 Tagen, 07.09. nach 3,5 Tagen): CUDA illegal memory access, danach 500 auf jede Anfrage. Ursache offen.",
+    "pruefstand": "86/86, opencode, 21:01 -- der schnellste vollstaendige Lauf der Sammlung"
+  },
+  "qwen38": {
+    "name": "Qwen3.8-27B NVFP4 + MTP",
+    "bauart": "dicht, 27B, NVFP4",
+    "kontext": 131072,
+    "durchsatz_tok_s": 20.0,
+    "faehigkeiten": ["werkzeugaufrufe", "deutsch", "code"],
+    "kein_bild": true,
+    "eignung": "Dichtes Modell, gruendlich. Fuer Aufgaben, bei denen Sorgfalt vor Tempo geht.",
+    "schwaeche": "Viermal langsamer als die MoE-Modelle. Ruft Werkzeuge bereitwillig auf, hoert danach aber auf zu denken -- sagt 'steht nicht in den Unterlagen', statt aus eigenem Wissen zu antworten. Ein Rechercheauftrag lief in die 420-s-Grenze.",
+    "pruefstand": "86/86"
+  },
+  "nemotronspec": {
+    "name": "Nemotron-3.5-Lightning-30B-A3B + DSpark",
+    "bauart": "MoE, 30B gesamt / 3B aktiv, NVFP4, spekulatives Dekodieren",
+    "kontext": 131072,
+    "durchsatz_tok_s": 91.9,
+    "faehigkeiten": ["werkzeugaufrufe", "code"],
+    "kein_bild": true,
+    "eignung": "Schnellstes Modell hier. Fuer Aufgaben mit viel Ausgabe.",
+    "schwaeche": "Deutsch ist die Schwachstelle: bildet Fachbegriffe adjektivisch ('sekundaere Elektronen' statt 'Sekundaerelektronen'), klingt uebersetzt.",
+    "pruefstand": "63-85/86, stark schwankend ueber 13 Laeufe"
+  },
+  "qwenvl30": {
+    "name": "Qwen3-VL-30B-A3B FP8",
+    "bauart": "MoE, 30B gesamt / 3B aktiv, FP8",
+    "kontext": 65536,
+    "faehigkeiten": ["werkzeugaufrufe", "deutsch", "bild"],
+    "kein_bild": false,
+    "eignung": "Das EINZIGE Modell hier, das Bilder sieht. Fuer Abbildungen in Dokumenten, Screenshots, Diagramme.",
+    "hinweis": "Nur laden, wenn wirklich ein Bild gelesen werden muss -- fuer Text sind die anderen besser und schneller."
+  },
+  "ds4": {
+    "name": "DeepSeek-V4-Flash",
+    "bauart": "MoE, GGUF, eigener Server auf Port 8888",
+    "kontext": 65536,
+    "durchsatz_tok_s": 29.0,
+    "faehigkeiten": ["werkzeugaufrufe", "code"],
+    "eignung": "Im Pruefstand das staerkste Modell der Maschine.",
+    "warnung": "Belegt mit -c 65536 bereits 113 von 121 GiB. Neben ihm laeuft nichts anderes mehr -- kein Sprachassistent, kein Einbettungsmodell."
+  }
+}
