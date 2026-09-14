@@ -68,6 +68,18 @@ und mit Quelle. Ein Agent soll damit *arbeiten* statt zu wechseln:
     Kann     : werkzeugaufrufe, deutsch, code
     Eignung  : Dichtes Modell, gründlich. Für Aufgaben, bei denen Sorgfalt vor Tempo geht.
     Schwäche : Viermal langsamer als die MoE-Modelle …
+
+Die Beschreibung erscheint **nur, wenn das gebuchte Modell auch das laufende
+ist**. Die Stelle fragt den Endpunkt selbst: `lage` sagt `bereit`, `laedt`
+oder `weg`, und weicht das Laufende vom Gebuchten ab, bleiben `profil` und
+`beschreibung` leer.
+
+Das war nicht immer so. Sie führte anfangs nur Buch über das, was ihr gemeldet
+wurde, und `model-switch` ist der einzige, der meldet. Am 14.09.2026 lief ein
+`llama-server` mit einem ganz anderen Modell auf dem Port, während die Stelle
+seit siebeneinhalb Stunden das alte Profil behauptete — samt Durchsatzzahlen
+eines Modells, das gar nicht lief. **Lieber keine Angabe als eine falsche:**
+danach richtet ein Agent seine Aufgabe aus.
     Belegt   : ['gutachten'], Wechsel möglich: False
 
 Ein Wechsel lohnt nur, wenn eine Fähigkeit wirklich fehlt — Bilder etwa kann

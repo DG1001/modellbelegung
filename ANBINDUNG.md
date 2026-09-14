@@ -124,3 +124,18 @@ curl -s http://127.0.0.1:8930/status | python3 -m json.tool
 `/status` liefert auch eine Beschreibung des geladenen Modells — Durchsatz,
 Fähigkeiten, bekannte Schwächen, alles gemessen. **Vor einem Wechsel lohnt der
 Blick:** oft taugt das, was schon da ist.
+
+**Das Feld `lage` zuerst lesen.** Die Stelle fragt den Endpunkt selbst und
+sagt, was wirklich antwortet:
+
+| `lage` | Bedeutung | was zu tun ist |
+|---|---|---|
+| `bereit` | Ein Modell antwortet; `modell` nennt es | normal weiterarbeiten |
+| `laedt` | Ein Dienst läuft, bietet aber noch nichts an | **warten, nicht umschalten** — das bräche den Ladevorgang ab |
+| `weg` | Am Endpunkt antwortet nichts | wer etwas braucht, muss laden |
+
+`profil` und `beschreibung` sind **nur gefüllt, wenn das gebuchte Modell auch
+das laufende ist**. Weicht es ab, stehen sie leer, `gemeldet` zeigt den
+veralteten Bucheintrag, und `hinweis` sagt, was los ist. Eine Beschreibung von
+Durchsatz und Qualität eines Modells, das gar nicht läuft, wäre schlimmer als
+keine — danach richtet sich ja, wie ein Agent seine Aufgabe zuschneidet.

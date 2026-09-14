@@ -26,6 +26,8 @@ import json
 import os
 import threading
 import time
+import urllib.error
+import urllib.request
 from dataclasses import dataclass, field, asdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -43,6 +45,20 @@ DAUER_MAX = 6 * 3600
 # So lange darf ein Wartender vorne stehen, ohne sich zu melden. Danach
 # ruecken die anderen auf -- sonst blockiert ein toter Wartender die Schlange.
 WARTE_VERFALL = 600
+
+# Der Endpunkt, an dem das Modell wirklich haengt.
+#
+# **Warum nachgesehen wird.** Die Stelle fuehrte bisher nur Buch ueber das,
+# was ihr gemeldet wurde, und `model-switch` ist der einzige, der meldet. Am
+# 14.09.2026 lief ein `llama-server` mit einem ganz anderen Modell auf dem
+# Port, waehrend die Stelle seit siebeneinhalb Stunden `ornith-voice`
+# behauptete -- samt Beschreibung von Durchsatz und Qualitaet eines Modells,
+# das gar nicht lief. Wer sie fragt, richtet sich danach.
+#
+# Lieber keine Angabe als eine falsche: was der Endpunkt sagt, gilt.
+ENDPUNKT = os.environ.get("BELEGUNG_ENDPUNKT", "http://127.0.0.1:8889/v1/models")
+ENDPUNKT_FRIST = 2.0     # /status darf nicht haengen, nur weil nichts laeuft
+ENDPUNKT_CACHE = 5.0     # ein Statusaufruf je Sekunde soll nicht jedesmal fragen
 
 _schloss = threading.RLock()
 
@@ -115,6 +131,36 @@ def _aufraeumen(z: Zustand) -> None:
                        if jetzt - w.seit < WARTE_VERFALL]
 
 
+_endpunkt_stand: tuple[float, str | None, str] = (0.0, None, "weg")
+
+
+def _am_endpunkt() -> tuple[str | None, str]:
+    """(Angebotener Name, Lage). Lage ist "bereit", "laedt" oder "weg".
+
+    Der Unterschied zwischen "laedt" und "weg" ist die Wartezeit: ein Dienst,
+    der antwortet, aber noch keinen Namen nennt, hat das Modell im Zugriff und
+    braucht Minuten; ein geschlossener Port braucht jemanden, der umschaltet.
+    Am 14.09.2026 gab ein ladender llama-server 503 zurueck -- als "weg"
+    gemeldet haette das jemanden zum Umschalten verleitet, mitten ins Laden
+    hinein.
+    """
+    global _endpunkt_stand
+    jetzt = time.time()
+    wann, wert, lage = _endpunkt_stand
+    if jetzt - wann < ENDPUNKT_CACHE:
+        return wert, lage
+    try:
+        with urllib.request.urlopen(ENDPUNKT, timeout=ENDPUNKT_FRIST) as a:
+            wert, lage = json.load(a)["data"][0]["id"], "bereit"
+    except urllib.error.HTTPError:
+        # Der Port antwortet, nur noch nicht mit einem Modell.
+        wert, lage = None, "laedt"
+    except (urllib.error.URLError, OSError, ValueError, KeyError, IndexError):
+        wert, lage = None, "weg"
+    _endpunkt_stand = (jetzt, wert, lage)
+    return wert, lage
+
+
 def modelle() -> dict:
     try:
         return json.loads(MODELLE.read_text(encoding="utf-8"))
@@ -126,13 +172,36 @@ def modelle() -> dict:
 def status() -> dict:
     with _schloss:
         z = _laden(); _aufraeumen(z); _sichern(z)
-        m = modelle().get(z.profil, {})
         jetzt = time.time()
+        # Was wirklich antwortet, schlaegt das Buch. Stimmt beides ueberein,
+        # gilt das Profil samt Beschreibung; sonst waere die Beschreibung eine
+        # Auskunft ueber ein Modell, das nicht laeuft.
+        echt, lage = _am_endpunkt()
+        stimmt = bool(echt) and echt == z.modell
+        m = modelle().get(z.profil, {}) if stimmt else {}
+        hinweis = ""
+        if lage == "laedt":
+            hinweis = ("Am Endpunkt läuft ein Dienst, der noch kein Modell"
+                       " anbietet — er lädt vermutlich gerade. NICHT umschalten,"
+                       " das bräche den Ladevorgang ab.")
+        elif lage == "weg":
+            hinweis = ("Am Endpunkt antwortet nichts — es ist gerade kein Modell"
+                       " geladen. Die Buchung unten ist der letzte gemeldete"
+                       " Stand, nicht die Lage.")
+        elif not stimmt:
+            hinweis = (f"Am Endpunkt läuft {echt!r}, gemeldet wurde zuletzt"
+                       f" {z.modell!r}. Wer umgeschaltet hat, hat es hier nicht"
+                       f" gesagt. Zu {echt!r} liegt keine Beschreibung vor.")
         return {
-            "profil": z.profil,
-            "modell": z.modell,
-            "geladen_seit_s": round(jetzt - z.geladen_seit) if z.geladen_seit else None,
+            "profil": z.profil if stimmt else "",
+            "modell": echt,
+            "geladen_seit_s": (round(jetzt - z.geladen_seit)
+                               if (stimmt and z.geladen_seit) else None),
             "beschreibung": m,
+            "lage": lage,
+            "hinweis": hinweis,
+            "gemeldet": ({"profil": z.profil, "modell": z.modell}
+                         if not stimmt else None),
             "belegt_von": [{"wer": b.wer, "zweck": b.zweck, "art": b.art,
                             "noch_s": round(b.bis - jetzt)} for b in z.belegungen],
             "warteschlange": [{"wer": w.wer, "profil": w.profil, "zweck": w.zweck,
