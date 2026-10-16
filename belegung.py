@@ -251,7 +251,15 @@ def belegen(wer: str, profil: str = "", dauer: int = DAUER_VORGABE,
                     "hinweis": "Es ist kein Profil gemeldet. Erst laden, dann melden.",
                     **status()}
 
-        if ziel == z.profil:
+        # Haelt jemand anderes exklusiv ein ANDERES Profil, laeuft gerade sein
+        # Wechsel -- auch wenn z.profil noch das alte zeigt, denn gemeldet
+        # wird erst nach dem Laden. Ohne diese Pruefung bekam am 16.10.2026
+        # der kihiwi-Waechter fuer das alte Profil "sofort, Mitbenutzung",
+        # hielt den ladenden Motor fuer tot und schaltete mitten hinein.
+        im_wechsel = [b for b in z.belegungen
+                      if b.wer != wer and b.art == "exklusiv" and b.profil != ziel]
+
+        if ziel == z.profil and not im_wechsel:
             # Mitbenutzung: eigene aeltere Belegung ersetzen, nicht haeufen.
             z.belegungen = [b for b in z.belegungen if b.wer != wer]
             z.belegungen.append(Belegung(wer, ziel, jetzt, jetzt + dauer, zweck, art))
